@@ -1,0 +1,99 @@
+const router = require('express').Router();
+const { Post, User } = require('../models');
+const withAuth = require('../utils/auth');
+
+router.get('/', withAuth, async (req, res) => {
+ 
+  try {
+    // Get all projects and JOIN with user data
+    const userData = await User.findByPk(req.session.user_id, {
+      attributes: { exclude: ['password'] },
+      include: [{ model: Post }],
+    });
+
+
+    
+    const user = userData.get({ plain: true });
+    console.log(user)
+    // Pass serialized data and session flag into template
+    res.render('dashboard', { 
+      ...user, 
+      logged_in: req.session.logged_in 
+    });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+router.get('/catch/:id', async (req, res) => {
+  try {
+    const catchData = await Post.findByPk(req.params.id, {
+      include: [
+        {
+          model: User,
+          attributes: ['name'],
+        },
+      ],
+    });
+
+    const project = catchData.get({ plain: true });
+
+    res.render('Post', {
+      ...project,
+      logged_in: req.session.logged_in
+    });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+// Use withAuth middleware to prevent access to route
+router.get('/dashboard', withAuth, async (req, res) => {
+  try {
+    // Find the logged in user based on the session ID
+    const userData = await User.findByPk(req.session.user_id, {
+      attributes: { exclude: ['password'] },
+      include: [{ model: Post }],
+    });
+
+    const user = userData.get({ plain: true });
+    console.log(user)
+    res.render('dashboard', {
+      ...user,
+      logged_in: true
+    });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+router.get('/login', (req, res) => {
+  // If the user is already logged in, redirect the request to another route
+  if (req.session.logged_in) {
+    res.redirect('/dashboard');
+    return;
+  }
+
+  res.render('login');
+});
+
+router.get("/dashboard", async (req, res) => {
+  try {
+    const catchData = await Post.findAll({
+      include: [
+        {
+          model: User,
+          attributes: ["id", "species", "weight", "length", "location", "user_id"],
+        },
+      ],
+    });
+
+    const catches = catchData.map((data) => data.get({plain: true}));
+    console.log(catches);
+    
+  } catch (err){
+    res.status(500).json(err)
+  }
+});
+
+module.exports = router;
