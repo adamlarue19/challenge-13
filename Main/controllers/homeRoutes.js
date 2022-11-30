@@ -1,33 +1,31 @@
 const router = require('express').Router();
-const { Post, User } = require('../models');
+const { Post, Comment, User } = require('../models');
 const withAuth = require('../utils/auth');
 
-router.get('/', withAuth, async (req, res) => {
- 
+router.get('/', async (req, res) => {
+
   try {
     // Get all projects and JOIN with user data
-    const userData = await User.findByPk(req.session.user_id, {
-      attributes: { exclude: ['password'] },
-      include: [{ model: Post }],
+    const pData = await Post.findAll({
+      include: [{ model: User }],
     });
 
 
+    const posts = pData.map((post) => post.get({ plain: true }));
     
-    const user = userData.get({ plain: true });
-    console.log(user)
     // Pass serialized data and session flag into template
-    res.render('dashboard', { 
-      ...user, 
-      logged_in: req.session.logged_in 
+    res.render('all-post', {
+      posts,
+      logged_in: req.session.logged_in
     });
   } catch (err) {
     res.status(500).json(err);
   }
 });
 
-router.get('/catch/:id', async (req, res) => {
+router.get('/post/:id', withAuth, async (req, res) => {
   try {
-    const catchData = await Post.findByPk(req.params.id, {
+    const cData = await Post.findByPk(req.params.id, {
       include: [
         {
           model: User,
@@ -88,10 +86,10 @@ router.get("/dashboard", async (req, res) => {
       ],
     });
 
-    const catches = catchData.map((data) => data.get({plain: true}));
+    const catches = catchData.map((data) => data.get({ plain: true }));
     console.log(catches);
-    
-  } catch (err){
+
+  } catch (err) {
     res.status(500).json(err)
   }
 });
