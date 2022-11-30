@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { Post, Comment, User } = require('../models');
+const { Post, User } = require('../models');
 const withAuth = require('../utils/auth');
 
 router.get('/', async (req, res) => {
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
 
 router.get('/post/:id', withAuth, async (req, res) => {
   try {
-    const cData = await Post.findByPk(req.params.id, {
+    const postData = await Post.findByPk(req.params.id, {
       include: [
         {
           model: User,
@@ -33,11 +33,20 @@ router.get('/post/:id', withAuth, async (req, res) => {
         },
       ],
     });
+    const post = postData.get({ plain: true });
 
-    const project = catchData.get({ plain: true });
+    const comments = commentData.map((comment) => comment.get({ plain: true }));
 
+
+    const commentData = await Comment.findAll({
+      where: {
+          post_id: req.params.id 
+      },
+      include: [ { model: User }, { model: Post }]
+  });
     res.render('Post', {
-      ...project,
+      ...post,
+      comments,
       logged_in: req.session.logged_in
     });
   } catch (err) {
@@ -45,53 +54,23 @@ router.get('/post/:id', withAuth, async (req, res) => {
   }
 });
 
-// Use withAuth middleware to prevent access to route
-router.get('/dashboard', withAuth, async (req, res) => {
-  try {
-    // Find the logged in user based on the session ID
-    const userData = await User.findByPk(req.session.user_id, {
-      attributes: { exclude: ['password'] },
-      include: [{ model: Post }],
-    });
 
-    const user = userData.get({ plain: true });
-    console.log(user)
-    res.render('dashboard', {
-      ...user,
-      logged_in: true
-    });
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
 
 router.get('/login', (req, res) => {
   // If the user is already logged in, redirect the request to another route
   if (req.session.logged_in) {
-    res.redirect('/dashboard');
+    res.redirect('/');
     return;
   }
-
   res.render('login');
 });
 
-router.get("/dashboard", async (req, res) => {
-  try {
-    const catchData = await Post.findAll({
-      include: [
-        {
-          model: User,
-          attributes: ["id", "species", "weight", "length", "location", "user_id"],
-        },
-      ],
-    });
-
-    const catches = catchData.map((data) => data.get({ plain: true }));
-    console.log(catches);
-
-  } catch (err) {
-    res.status(500).json(err)
+router.get('/createaccount', (req, res) => {
+  if (req.session.loggedIn) {
+      res.redirect('/');
+      return;
   }
+  res.render('createaccount');
 });
 
 module.exports = router;
